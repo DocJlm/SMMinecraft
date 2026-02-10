@@ -1,0 +1,48 @@
+'use client';
+import { useGameStore } from '@/stores/game-store';
+
+export default function MatchResult() {
+  const showMatchResult = useGameStore((s) => s.showMatchResult);
+  const setShowMatchResult = useGameStore((s) => s.setShowMatchResult);
+  const activeConversation = useGameStore((s) => s.activeConversation);
+
+  if (!showMatchResult || !activeConversation?.result) return null;
+
+  const { compatibilityScore, summary } = activeConversation.result;
+  const { playerA, playerB } = activeConversation;
+
+  const scoreColor = (compatibilityScore || 0) > 70 ? '#4ade80' :
+                     (compatibilityScore || 0) > 40 ? '#fbbf24' : '#f87171';
+
+  return (
+    <div className="pointer-events-auto absolute inset-0 flex items-center justify-center z-30 bg-black/50">
+      <div className="bg-gradient-to-br from-pink-900/90 to-purple-900/90 rounded-3xl p-8 backdrop-blur-xl border border-white/10 max-w-md w-full mx-4">
+        <div className="text-center">
+          <p className="text-4xl mb-2">💕</p>
+          <h2 className="text-white text-2xl font-bold mb-1">Match Result</h2>
+          <p className="text-white/60 text-sm mb-6">
+            {playerA.name} x {playerB.name}
+          </p>
+        </div>
+
+        <div className="text-center mb-6">
+          <p className="text-6xl font-bold" style={{ color: scoreColor }}>
+            {compatibilityScore}%
+          </p>
+          <p className="text-white/60 text-sm mt-2">Compatibility Score</p>
+        </div>
+
+        {summary && (
+          <p className="text-white/80 text-sm text-center mb-6">{summary}</p>
+        )}
+
+        <button
+          onClick={() => setShowMatchResult(false)}
+          className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}

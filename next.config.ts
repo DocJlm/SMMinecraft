@@ -1,7 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ['three'],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cdn.mindos.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.mindos.com',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

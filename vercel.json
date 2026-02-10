@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "src/app/api/a2a/**": {
+      "maxDuration": 10
+    }
+  }
+}
