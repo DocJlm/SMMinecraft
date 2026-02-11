@@ -68,6 +68,8 @@ export default function Terrain() {
     }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    // Force material recompile to pick up USE_INSTANCING_COLOR
+    (mesh.material as THREE.Material).needsUpdate = true;
   }, [matrices, colors, count]);
 
   return (
