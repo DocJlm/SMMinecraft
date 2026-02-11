@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useGameStore } from '@/stores/game-store';
-import { getZoneAtPosition, WORLD_SIZE } from '@/lib/world-config';
+import { getZoneAtPosition, getTerrainHeight, isPositionBlocked, WORLD_SIZE } from '@/lib/world-config';
 import PlayerAvatar from './PlayerAvatar';
 
 const SPEED = 8;
@@ -39,11 +39,25 @@ export default function LocalPlayer({ color, name, onPositionChange }: LocalPlay
 
     if (dir.length() > 0) {
       dir.normalize().multiplyScalar(SPEED * delta);
-      posRef.current.add(dir);
 
-      posRef.current.x = Math.max(-HALF, Math.min(HALF, posRef.current.x));
-      posRef.current.z = Math.max(-HALF, Math.min(HALF, posRef.current.z));
-      posRef.current.y = 1;
+      // Try X movement separately (allows wall sliding)
+      const nextX = Math.max(-HALF, Math.min(HALF, posRef.current.x + dir.x));
+      if (!isPositionBlocked(nextX, posRef.current.z)) {
+        posRef.current.x = nextX;
+      }
+
+      // Try Z movement separately (allows wall sliding)
+      const nextZ = Math.max(-HALF, Math.min(HALF, posRef.current.z + dir.z));
+      if (!isPositionBlocked(posRef.current.x, nextZ)) {
+        posRef.current.z = nextZ;
+      }
+
+      // Terrain height following
+      const terrainH = getTerrainHeight(
+        Math.round(posRef.current.x),
+        Math.round(posRef.current.z)
+      );
+      posRef.current.y = terrainH + 1;
 
       groupRef.current.position.copy(posRef.current);
 

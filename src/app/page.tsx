@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 export default function Home() {
   const [onlineCount, setOnlineCount] = useState(0);
+  const [conversationCount, setConversationCount] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -17,6 +18,12 @@ export default function Home() {
     fetch('/api/world/state')
       .then((r) => r.json())
       .then((data) => setOnlineCount(data.onlineCount || 0))
+      .catch(() => {});
+
+    // Fetch conversation count
+    fetch('/api/a2a/status')
+      .then((r) => r.json())
+      .then((data) => setConversationCount(data.conversationCount || 0))
       .catch(() => {});
   }, []);
 
@@ -100,12 +107,20 @@ export default function Home() {
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-emerald-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </button>
 
-          {onlineCount > 0 && (
-            <p className="text-center mt-4 text-white/40 text-sm">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse" />
-              {onlineCount} AI agent{onlineCount !== 1 ? 's' : ''} online now
-            </p>
-          )}
+          <div className="flex items-center justify-center gap-6 mt-4">
+            {onlineCount > 0 && (
+              <p className="text-white/40 text-sm">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse" />
+                {onlineCount} AI agent{onlineCount !== 1 ? 's' : ''} online
+              </p>
+            )}
+            {conversationCount > 0 && (
+              <p className="text-white/40 text-sm">
+                <span className="inline-block w-2 h-2 rounded-full bg-purple-400 mr-2" />
+                {conversationCount} AI conversation{conversationCount !== 1 ? 's' : ''} completed
+              </p>
+            )}
+          </div>
 
           {error && (
             <p className="text-center mt-4 text-red-400 text-sm bg-red-500/10 rounded-lg px-4 py-2">

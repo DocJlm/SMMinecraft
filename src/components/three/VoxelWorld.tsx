@@ -6,6 +6,7 @@ import Terrain from './Terrain';
 import Buildings from './Buildings';
 import LocalPlayer from './LocalPlayer';
 import RemotePlayers from './RemotePlayers';
+import Decorations from './Decorations';
 
 interface VoxelWorldProps {
   playerColor: string;
@@ -29,19 +30,20 @@ export default function VoxelWorld({ playerColor, playerName, onPositionChange }
       camera={{ position: [15, 20, 15], fov: 50, near: 0.1, far: 500 }}
       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
     >
-      <color attach="background" args={['#87CEEB']} />
+      <color attach="background" args={['#81d4fa']} />
       <ambientLight intensity={0.6} />
       <directionalLight
         position={[50, 80, 50]}
-        intensity={1}
+        intensity={1.2}
         castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-50}
-        shadow-camera-right={50}
-        shadow-camera-top={50}
-        shadow-camera-bottom={-50}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-60}
+        shadow-camera-right={60}
+        shadow-camera-top={60}
+        shadow-camera-bottom={-60}
       />
-      <fog attach="fog" args={['#87CEEB', 60, 120]} />
+      <hemisphereLight args={['#b3e5fc', '#4a7c3f', 0.3]} />
+      <fog attach="fog" args={['#b3e5fc', 80, 160]} />
 
       <Suspense fallback={<LoadingFallback />}>
         <SkyBox />
@@ -53,6 +55,7 @@ export default function VoxelWorld({ playerColor, playerName, onPositionChange }
           onPositionChange={onPositionChange}
         />
         <RemotePlayers />
+        <Decorations />
       </Suspense>
     </Canvas>
   );

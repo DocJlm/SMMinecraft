@@ -3,7 +3,7 @@ import { Zone, Position, TradeItem } from '@/types';
 export const WORLD_SIZE = 64;
 export const PLAYER_TIMEOUT = 30000;
 export const POLL_INTERVAL = 2000;
-export const POSITION_REPORT_INTERVAL = 200;
+export const POSITION_REPORT_INTERVAL = 2000;
 
 export const ZONES: Zone[] = [
   {
@@ -88,4 +88,41 @@ export function getTerrainHeight(x: number, z: number): number {
   const h = Math.sin(x * scale) * Math.cos(z * scale) * 2 +
             Math.sin(x * scale * 2.3 + 1.5) * Math.cos(z * scale * 1.7) * 1;
   return Math.max(0, Math.floor(h));
+}
+
+/** Check if a world position is blocked by a building wall. */
+export function isPositionBlocked(px: number, pz: number): boolean {
+  const pr = 0.4; // player collision radius
+
+  for (const zone of ZONES) {
+    const r = Math.floor(zone.radius * 0.55);
+    const cx = zone.center.x;
+    const cz = zone.center.z;
+    const t = 0.5 + pr; // wall half-thickness + player radius
+
+    // West wall (x = cx - r)
+    if (Math.abs(px - (cx - r)) < t &&
+        pz >= cz - r - t && pz <= cz + r + t) {
+      return true;
+    }
+    // East wall (x = cx + r)
+    if (Math.abs(px - (cx + r)) < t &&
+        pz >= cz - r - t && pz <= cz + r + t) {
+      return true;
+    }
+    // Back wall (z = cz + r)
+    if (Math.abs(pz - (cz + r)) < t &&
+        px >= cx - r - t && px <= cx + r + t) {
+      return true;
+    }
+    // Front wall (z = cz - r) — has door gap at |x - cx| <= 1
+    if (Math.abs(pz - (cz - r)) < t &&
+        px >= cx - r - t && px <= cx + r + t) {
+      // Allow through if within door opening
+      if (Math.abs(px - cx) > 1.5) {
+        return true;
+      }
+    }
+  }
+  return false;
 }

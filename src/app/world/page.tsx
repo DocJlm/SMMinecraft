@@ -50,6 +50,8 @@ export default function WorldPage() {
   const [showPlayerCard, setShowPlayerCard] = useState(false);
   const pollRef = useRef<NodeJS.Timeout>(undefined);
   const a2aPollRef = useRef<NodeJS.Timeout>(undefined);
+  const isPollingA2A = useRef(false);
+  const npcTickRef = useRef<NodeJS.Timeout>(undefined);
 
   // Auth check
   useEffect(() => {
@@ -67,17 +69,27 @@ export default function WorldPage() {
       });
   }, [setUser]);
 
-  // Join world
+  // Join world + trigger initial NPC tick
   useEffect(() => {
     if (!user) return;
     fetch('/api/world/join', { method: 'POST' }).catch(() => {});
+    // Trigger initial NPC spawn
+    fetch('/api/world/npc-tick', { method: 'POST' }).catch(() => {});
+
+    // NPC tick every 10 seconds
+    npcTickRef.current = setInterval(() => {
+      fetch('/api/world/npc-tick', { method: 'POST' }).catch(() => {});
+    }, 10000);
 
     // Leave on unload
     const handleUnload = () => {
       navigator.sendBeacon('/api/world/leave');
     };
     window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      clearInterval(npcTickRef.current);
+    };
   }, [user]);
 
   // Poll world state
@@ -177,11 +189,15 @@ export default function WorldPage() {
         setActiveConversation(data.conversation);
         setHudMessage('');
 
-        // Start polling for next rounds
+        // Start polling for next rounds (5s interval, with concurrency guard)
         const pollA2A = async () => {
+          if (isPollingA2A.current) return;
+          isPollingA2A.current = true;
+
           const convState = useGameStore.getState().activeConversation;
           if (!convState || convState.status === 'completed' || convState.status === 'error') {
             clearInterval(a2aPollRef.current);
+            isPollingA2A.current = false;
             if (convState?.status === 'completed') {
               if (convState.mode === 'dating') setShowMatchResult(true);
               if (convState.mode === 'trade') setShowTradeWindow(true);
@@ -195,14 +211,21 @@ export default function WorldPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ conversationId: convState.id }),
             });
-            const nextData = await nextRes.json();
-            if (nextData.conversation) {
-              useGameStore.getState().setActiveConversation(nextData.conversation);
+            // Silently handle 504 and other errors
+            if (nextRes.ok) {
+              const nextData = await nextRes.json();
+              if (nextData.conversation) {
+                useGameStore.getState().setActiveConversation(nextData.conversation);
+              }
             }
-          } catch {}
+          } catch {
+            // Silent retry on network errors - don't break the polling loop
+          } finally {
+            isPollingA2A.current = false;
+          }
         };
 
-        a2aPollRef.current = setInterval(pollA2A, 3000);
+        a2aPollRef.current = setInterval(pollA2A, 5000);
       } catch (err) {
         setHudMessage('Failed to start conversation');
         setTimeout(() => setHudMessage(''), 3000);

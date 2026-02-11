@@ -56,57 +56,90 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 // Chat with a user's AI avatar via SSE - collect full response
+// Includes 8s timeout (Vercel functions have 10s limit) and 1 retry
 export async function chatWithAI(
   accessToken: string,
   message: string,
   systemPrompt?: string,
   sessionId?: string
 ): Promise<{ content: string; sessionId: string }> {
-  const body: Record<string, unknown> = { message };
-  if (systemPrompt) body.systemPrompt = systemPrompt;
-  if (sessionId) body.sessionId = sessionId;
+  const doRequest = async (): Promise<{ content: string; sessionId: string }> => {
+    const body: Record<string, unknown> = { message };
+    if (systemPrompt) body.systemPrompt = systemPrompt;
+    if (sessionId) body.sessionId = sessionId;
 
-  const res = await fetch(`${BASE_URL}/api/secondme/chat/stream`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
-  if (!res.ok) {
-    throw new Error(`Chat API error: ${res.status}`);
-  }
+    try {
+      const res = await fetch(`${BASE_URL}/api/secondme/chat/stream`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
 
-  let content = '';
-  let newSessionId = sessionId || '';
-
-  const text = await res.text();
-  const lines = text.split('\n');
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.startsWith('event: session')) {
-      const nextLine = lines[i + 1];
-      if (nextLine?.startsWith('data: ')) {
-        try {
-          const sessionData = JSON.parse(nextLine.slice(6));
-          newSessionId = sessionData.sessionId || newSessionId;
-        } catch {}
+      if (!res.ok) {
+        throw new Error(`Chat API error: ${res.status}`);
       }
-    } else if (line.startsWith('data: ')) {
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') break;
-      try {
-        const parsed = JSON.parse(data);
-        const delta = parsed.choices?.[0]?.delta?.content;
-        if (delta) content += delta;
-      } catch {}
+
+      let content = '';
+      let newSessionId = sessionId || '';
+
+      const text = await res.text();
+      const lines = text.split('\n');
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith('event: session')) {
+          const nextLine = lines[i + 1];
+          if (nextLine?.startsWith('data: ')) {
+            try {
+              const sessionData = JSON.parse(nextLine.slice(6));
+              newSessionId = sessionData.sessionId || newSessionId;
+            } catch {}
+          }
+        } else if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) content += delta;
+          } catch {}
+        }
+      }
+
+      // Fallback if SSE returned empty content
+      if (!content.trim()) {
+        content = "Hmm, I'm gathering my thoughts... What were you saying?";
+      }
+
+      return { content, sessionId: newSessionId };
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  // Try once, retry once on failure
+  try {
+    return await doRequest();
+  } catch (error) {
+    console.warn('chatWithAI first attempt failed, retrying:', error);
+    try {
+      return await doRequest();
+    } catch (retryError) {
+      console.error('chatWithAI retry also failed:', retryError);
+      // Return fallback instead of throwing to keep conversation alive
+      return {
+        content: "I got a bit distracted... Could you repeat that?",
+        sessionId: sessionId || '',
+      };
     }
   }
-
-  return { content, sessionId: newSessionId };
 }
 
 export async function generateTTS(accessToken: string, text: string, emotion?: string) {
