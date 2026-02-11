@@ -27,54 +27,55 @@ export default function LocalPlayer({ color, name, onPositionChange }: LocalPlay
   const showChat = useGameStore((s) => s.showChat);
 
   useFrame((_, delta) => {
-    if (!groupRef.current || showChat) return;
+    if (!groupRef.current) return;
 
-    const dir = new THREE.Vector3();
-    const k = keys.current;
+    // Movement - only when not chatting
+    if (!showChat) {
+      const dir = new THREE.Vector3();
+      const k = keys.current;
 
-    if (k['w'] || k['arrowup']) dir.z -= 1;
-    if (k['s'] || k['arrowdown']) dir.z += 1;
-    if (k['a'] || k['arrowleft']) dir.x -= 1;
-    if (k['d'] || k['arrowright']) dir.x += 1;
+      if (k['w'] || k['arrowup']) dir.z -= 1;
+      if (k['s'] || k['arrowdown']) dir.z += 1;
+      if (k['a'] || k['arrowleft']) dir.x -= 1;
+      if (k['d'] || k['arrowright']) dir.x += 1;
 
-    if (dir.length() > 0) {
-      dir.normalize().multiplyScalar(SPEED * delta);
+      if (dir.length() > 0) {
+        dir.normalize().multiplyScalar(SPEED * delta);
 
-      // Try X movement separately (allows wall sliding)
-      const nextX = Math.max(-HALF, Math.min(HALF, posRef.current.x + dir.x));
-      if (!isPositionBlocked(nextX, posRef.current.z)) {
-        posRef.current.x = nextX;
-      }
+        const nextX = Math.max(-HALF, Math.min(HALF, posRef.current.x + dir.x));
+        if (!isPositionBlocked(nextX, posRef.current.z)) {
+          posRef.current.x = nextX;
+        }
 
-      // Try Z movement separately (allows wall sliding)
-      const nextZ = Math.max(-HALF, Math.min(HALF, posRef.current.z + dir.z));
-      if (!isPositionBlocked(posRef.current.x, nextZ)) {
-        posRef.current.z = nextZ;
-      }
+        const nextZ = Math.max(-HALF, Math.min(HALF, posRef.current.z + dir.z));
+        if (!isPositionBlocked(posRef.current.x, nextZ)) {
+          posRef.current.z = nextZ;
+        }
 
-      // Terrain height following
-      const terrainH = getTerrainHeight(
-        Math.round(posRef.current.x),
-        Math.round(posRef.current.z)
-      );
-      posRef.current.y = terrainH + 1;
+        const terrainH = getTerrainHeight(
+          Math.round(posRef.current.x),
+          Math.round(posRef.current.z)
+        );
+        posRef.current.y = terrainH + 1;
 
-      groupRef.current.position.copy(posRef.current);
+        groupRef.current.position.copy(posRef.current);
 
-      const pos = { x: posRef.current.x, y: posRef.current.y, z: posRef.current.z };
-      setPosition(pos);
+        const pos = { x: posRef.current.x, y: posRef.current.y, z: posRef.current.z };
+        setPosition(pos);
 
-      const zone = getZoneAtPosition(pos);
-      setZone(zone?.id || 'none');
-
-      const now = Date.now();
-      if (now - lastReportRef.current > 2000) {
-        lastReportRef.current = now;
-        onPositionChange(pos.x, pos.y, pos.z);
+        const zone = getZoneAtPosition(pos);
+        setZone(zone?.id || 'none');
       }
     }
 
-    // Camera follow - isometric style
+    // Always report position periodically (even during chat, to stay "online")
+    const now = Date.now();
+    if (now - lastReportRef.current > 2000) {
+      lastReportRef.current = now;
+      onPositionChange(posRef.current.x, posRef.current.y, posRef.current.z);
+    }
+
+    // Camera follow - always active
     const camOffset = new THREE.Vector3(15, 20, 15);
     const targetCamPos = posRef.current.clone().add(camOffset);
     camera.position.lerp(targetCamPos, 0.05);

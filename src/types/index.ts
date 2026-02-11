@@ -90,8 +90,8 @@ export interface Conversation {
   id: string;
   mode: ConversationMode;
   status: ConversationStatus;
-  playerA: { userId: string; name: string };
-  playerB: { userId: string; name: string };
+  playerA: { userId: string; name: string; avatar?: string };
+  playerB: { userId: string; name: string; avatar?: string };
   messages: ConversationMessage[];
   currentRound: number;
   maxRounds: number;
