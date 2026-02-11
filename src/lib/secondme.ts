@@ -112,6 +112,17 @@ export async function chatWithAI(
       }
     }
 
+    // Strip markdown formatting from AI response
+    content = content
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/_(.+?)_/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/`([^`]+)`/g, '$1');
+
     // Fallback if SSE returned empty content
     if (!content.trim()) {
       content = "Hmm, I'm gathering my thoughts... What were you saying?";
