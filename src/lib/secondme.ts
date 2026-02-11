@@ -68,7 +68,7 @@ export async function chatWithAI(
   if (sessionId) body.sessionId = sessionId;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const res = await fetch(`${BASE_URL}/api/secondme/chat/stream`, {

@@ -95,6 +95,8 @@ export interface Conversation {
   messages: ConversationMessage[];
   currentRound: number;
   maxRounds: number;
+  sessionIdA?: string;
+  sessionIdB?: string;
   result?: ConversationResult;
   createdAt: number;
   updatedAt: number;

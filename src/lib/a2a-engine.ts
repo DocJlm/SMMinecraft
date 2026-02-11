@@ -89,12 +89,12 @@ export async function executeNextRound(conversationId: string): Promise<Conversa
         messageToSend = `Hey! I'm ${otherSpeaker.name}. Just hanging out at the cafe. What's on your mind?`;
     }
   } else {
-    // Build context from conversation history + latest message
-    const history = conv.messages
-      .map((m) => `${m.speakerName}: ${m.content}`)
-      .join('\n');
-    messageToSend = `Here's our conversation so far:\n${history}\n\nPlease continue the conversation naturally. Reply as yourself (do NOT repeat or prefix with your name).`;
+    const lastMessage = conv.messages[conv.messages.length - 1];
+    messageToSend = lastMessage.content;
   }
+
+  // Use per-player sessionId for context continuity
+  const currentSessionId = isPlayerATurn ? conv.sessionIdA : conv.sessionIdB;
 
   try {
     conv.status = 'active';
@@ -102,8 +102,17 @@ export async function executeNextRound(conversationId: string): Promise<Conversa
       accessToken,
       messageToSend,
       systemPrompt,
-      undefined
+      currentSessionId
     );
+
+    // Store returned sessionId for this player
+    if (result.sessionId) {
+      if (isPlayerATurn) {
+        conv.sessionIdA = result.sessionId;
+      } else {
+        conv.sessionIdB = result.sessionId;
+      }
+    }
 
     const newMessage: ConversationMessage = {
       round: conv.currentRound,
