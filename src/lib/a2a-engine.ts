@@ -77,10 +77,23 @@ export async function executeNextRound(conversationId: string): Promise<Conversa
   let messageToSend: string;
 
   if (conv.messages.length === 0) {
-    messageToSend = `Hi! I'm ${otherSpeaker.name}. Nice to meet you! Tell me about yourself.`;
+    // Mode-specific opening message
+    switch (conv.mode) {
+      case 'dating':
+        messageToSend = `Hi! I'm ${otherSpeaker.name}. I noticed you across the plaza and wanted to say hello. What brings you here today?`;
+        break;
+      case 'trade':
+        messageToSend = `Hey there! I'm ${otherSpeaker.name}. I heard you might have some interesting items to trade. What do you have in mind?`;
+        break;
+      default:
+        messageToSend = `Hey! I'm ${otherSpeaker.name}. Just hanging out at the cafe. What's on your mind?`;
+    }
   } else {
-    const lastMessage = conv.messages[conv.messages.length - 1];
-    messageToSend = lastMessage.content;
+    // Build context from conversation history + latest message
+    const history = conv.messages
+      .map((m) => `${m.speakerName}: ${m.content}`)
+      .join('\n');
+    messageToSend = `Here's our conversation so far:\n${history}\n\nPlease continue the conversation naturally. Reply as yourself (do NOT repeat or prefix with your name).`;
   }
 
   try {
@@ -88,7 +101,7 @@ export async function executeNextRound(conversationId: string): Promise<Conversa
     const result = await chatWithAI(
       accessToken,
       messageToSend,
-      conv.currentRound <= 1 ? systemPrompt : undefined,
+      systemPrompt,
       undefined
     );
 

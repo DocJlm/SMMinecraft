@@ -1,12 +1,15 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '@/stores/game-store';
 
 export default function ChatPanel() {
   const showChat = useGameStore((s) => s.showChat);
   const setShowChat = useGameStore((s) => s.setShowChat);
   const activeConversation = useGameStore((s) => s.activeConversation);
+  const setActiveConversation = useGameStore((s) => s.setActiveConversation);
+  const setShowMatchResult = useGameStore((s) => s.setShowMatchResult);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,9 +88,9 @@ export default function ChatPanel() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Result */}
+      {/* Result + Action Buttons */}
       {conv.status === 'completed' && conv.result && (
-        <div className="px-4 py-3 border-t border-white/10 bg-white/5">
+        <div className="px-4 py-3 border-t border-white/10 bg-white/5 space-y-3">
           {conv.result.compatibilityScore !== undefined && (
             <div className="text-center">
               <p className="text-white/70 text-xs">Compatibility Score</p>
@@ -105,12 +108,71 @@ export default function ChatPanel() {
           {conv.result.summary && !conv.result.compatibilityScore && (
             <p className="text-white/60 text-sm text-center">{conv.result.summary}</p>
           )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2 justify-center pt-1">
+            <button
+              onClick={() => {
+                const summary = conv.messages
+                  .map((m) => `${m.speakerName}: ${m.content}`)
+                  .join('\n');
+                const header = `SecondCraft ${modeLabel} - ${conv.playerA.name} x ${conv.playerB.name}`;
+                const score = conv.result?.compatibilityScore
+                  ? `\nCompatibility: ${conv.result.compatibilityScore}%`
+                  : '';
+                navigator.clipboard.writeText(`${header}${score}\n\n${summary}`).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-xs transition-colors"
+            >
+              {copied ? 'Copied!' : 'Share Chat'}
+            </button>
+            {conv.mode === 'dating' && (
+              <button
+                onClick={() => setShowMatchResult(true)}
+                className="px-3 py-1.5 rounded-lg bg-pink-500/30 hover:bg-pink-500/40 text-pink-200 text-xs transition-colors"
+              >
+                View Match
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setShowChat(false);
+                setActiveConversation(null);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-xs transition-colors"
+            >
+              Chat Again
+            </button>
+            <button
+              onClick={() => {
+                setShowChat(false);
+                setActiveConversation(null);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 text-xs transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
 
       {conv.status === 'error' && (
         <div className="px-4 py-3 border-t border-red-500/20 bg-red-500/10">
           <p className="text-red-300 text-sm text-center">Conversation error. The AI may be unavailable.</p>
+          <div className="flex justify-center mt-2">
+            <button
+              onClick={() => {
+                setShowChat(false);
+                setActiveConversation(null);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 text-xs transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>

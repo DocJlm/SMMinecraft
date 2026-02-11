@@ -56,89 +56,76 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 // Chat with a user's AI avatar via SSE - collect full response
-// Includes 8s timeout (Vercel functions have 10s limit) and 1 retry
+// 9s timeout (Vercel functions have 10s limit), no retry - single long attempt is more reliable
 export async function chatWithAI(
   accessToken: string,
   message: string,
   systemPrompt?: string,
   sessionId?: string
 ): Promise<{ content: string; sessionId: string }> {
-  const doRequest = async (): Promise<{ content: string; sessionId: string }> => {
-    const body: Record<string, unknown> = { message };
-    if (systemPrompt) body.systemPrompt = systemPrompt;
-    if (sessionId) body.sessionId = sessionId;
+  const body: Record<string, unknown> = { message };
+  if (systemPrompt) body.systemPrompt = systemPrompt;
+  if (sessionId) body.sessionId = sessionId;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000);
 
-    try {
-      const res = await fetch(`${BASE_URL}/api/secondme/chat/stream`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+  try {
+    const res = await fetch(`${BASE_URL}/api/secondme/chat/stream`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
 
-      if (!res.ok) {
-        throw new Error(`Chat API error: ${res.status}`);
-      }
+    if (!res.ok) {
+      throw new Error(`Chat API error: ${res.status}`);
+    }
 
-      let content = '';
-      let newSessionId = sessionId || '';
+    let content = '';
+    let newSessionId = sessionId || '';
 
-      const text = await res.text();
-      const lines = text.split('\n');
+    const text = await res.text();
+    const lines = text.split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.startsWith('event: session')) {
-          const nextLine = lines[i + 1];
-          if (nextLine?.startsWith('data: ')) {
-            try {
-              const sessionData = JSON.parse(nextLine.slice(6));
-              newSessionId = sessionData.sessionId || newSessionId;
-            } catch {}
-          }
-        } else if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith('event: session')) {
+        const nextLine = lines[i + 1];
+        if (nextLine?.startsWith('data: ')) {
           try {
-            const parsed = JSON.parse(data);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) content += delta;
+            const sessionData = JSON.parse(nextLine.slice(6));
+            newSessionId = sessionData.sessionId || newSessionId;
           } catch {}
         }
+      } else if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) content += delta;
+        } catch {}
       }
-
-      // Fallback if SSE returned empty content
-      if (!content.trim()) {
-        content = "Hmm, I'm gathering my thoughts... What were you saying?";
-      }
-
-      return { content, sessionId: newSessionId };
-    } finally {
-      clearTimeout(timeout);
     }
-  };
 
-  // Try once, retry once on failure
-  try {
-    return await doRequest();
+    // Fallback if SSE returned empty content
+    if (!content.trim()) {
+      content = "Hmm, I'm gathering my thoughts... What were you saying?";
+    }
+
+    return { content, sessionId: newSessionId };
   } catch (error) {
-    console.warn('chatWithAI first attempt failed, retrying:', error);
-    try {
-      return await doRequest();
-    } catch (retryError) {
-      console.error('chatWithAI retry also failed:', retryError);
-      // Return fallback instead of throwing to keep conversation alive
-      return {
-        content: "I got a bit distracted... Could you repeat that?",
-        sessionId: sessionId || '',
-      };
-    }
+    console.error('chatWithAI failed:', error);
+    return {
+      content: "That's an interesting thought... Tell me more about yourself!",
+      sessionId: sessionId || '',
+    };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
