@@ -56,7 +56,7 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 // Chat with a user's AI avatar via SSE - collect full response
-// 9s timeout (Vercel functions have 10s limit), no retry - single long attempt is more reliable
+// 20s timeout - Edge Runtime has 30s limit, leaving 10s for KV operations
 export async function chatWithAI(
   accessToken: string,
   message: string,
@@ -68,7 +68,7 @@ export async function chatWithAI(
   if (sessionId) body.sessionId = sessionId;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
 
   try {
     const res = await fetch(`${BASE_URL}/api/secondme/chat/stream`, {

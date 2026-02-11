@@ -4,6 +4,8 @@ import { executeNextRound } from '@/lib/a2a-engine';
 import { kvGet, KEYS } from '@/lib/kv';
 import { Conversation } from '@/types';
 
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ conversation: conv });
     }
 
-    const updated = await executeNextRound(conversationId);
+    const updated = await executeNextRound(conversationId, conv);
     return NextResponse.json({ conversation: updated });
   } catch (error: unknown) {
     console.error('A2A next round error:', error);

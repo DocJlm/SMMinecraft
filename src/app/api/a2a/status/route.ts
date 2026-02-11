@@ -3,6 +3,8 @@ import { kvGet, KEYS } from '@/lib/kv';
 import { Conversation } from '@/types';
 import { getConversationCount } from '@/lib/a2a-engine';
 
+export const runtime = 'edge';
+
 export async function GET(request: NextRequest) {
   const conversationId = request.nextUrl.searchParams.get('id');
 

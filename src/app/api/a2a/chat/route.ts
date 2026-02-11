@@ -3,6 +3,8 @@ import { getSessionUserId } from '@/lib/auth';
 import { createConversation, executeNextRound } from '@/lib/a2a-engine';
 import { ConversationMode } from '@/types';
 
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,7 +16,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const conv = await createConversation(userId, targetUserId, mode as ConversationMode);
-    const updated = await executeNextRound(conv.id);
+    const updated = await executeNextRound(conv.id, conv);
     return NextResponse.json({ conversation: updated });
   } catch (error: unknown) {
     console.error('A2A chat error:', error);

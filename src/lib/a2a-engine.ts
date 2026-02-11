@@ -62,8 +62,11 @@ export async function createConversation(
   return conversation;
 }
 
-export async function executeNextRound(conversationId: string): Promise<Conversation> {
-  const conv = await kvGet<Conversation>(KEYS.conversation(conversationId));
+export async function executeNextRound(
+  conversationId: string,
+  existingConv?: Conversation
+): Promise<Conversation> {
+  const conv = existingConv || await kvGet<Conversation>(KEYS.conversation(conversationId));
   if (!conv) throw new Error('Conversation not found');
   if (conv.status === 'completed' || conv.status === 'error') return conv;
 
