@@ -2,7 +2,6 @@ import { Conversation, ConversationMode, ConversationMessage } from '@/types';
 import { kvGet, kvSet, KEYS } from './kv';
 import { chatWithAI, refreshAccessToken } from './secondme';
 import { StoredUser } from '@/types';
-import { isNPC, getNPCConfig } from './npc-config';
 
 function getSystemPrompt(mode: ConversationMode, otherName: string): string {
   switch (mode) {
@@ -40,21 +39,10 @@ export async function createConversation(
   playerBId: string,
   mode: ConversationMode
 ): Promise<Conversation> {
-  const playerBIsNPC = isNPC(playerBId);
-
   const userA = await kvGet<StoredUser>(KEYS.user(playerAId));
-  if (!userA) throw new Error('Player A must be logged in');
+  const userB = await kvGet<StoredUser>(KEYS.user(playerBId));
 
-  let playerBName: string;
-  if (playerBIsNPC) {
-    const npcConfig = getNPCConfig(playerBId);
-    if (!npcConfig) throw new Error('Unknown NPC');
-    playerBName = npcConfig.name;
-  } else {
-    const userB = await kvGet<StoredUser>(KEYS.user(playerBId));
-    if (!userB) throw new Error('Player B must be logged in');
-    playerBName = userB.user.name;
-  }
+  if (!userA || !userB) throw new Error('Both players must be logged in');
 
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const conversation: Conversation = {
@@ -62,7 +50,7 @@ export async function createConversation(
     mode,
     status: 'pending',
     playerA: { userId: playerAId, name: userA.user.name },
-    playerB: { userId: playerBId, name: playerBName },
+    playerB: { userId: playerBId, name: userB.user.name },
     messages: [],
     currentRound: 0,
     maxRounds: mode === 'dating' ? 5 : mode === 'trade' ? 4 : 3,
@@ -83,26 +71,8 @@ export async function executeNextRound(conversationId: string): Promise<Conversa
   const currentSpeaker = isPlayerATurn ? conv.playerA : conv.playerB;
   const otherSpeaker = isPlayerATurn ? conv.playerB : conv.playerA;
 
-  const currentIsNPC = isNPC(currentSpeaker.userId);
-
-  // For NPC turns, use the real player's token + NPC role prompt
-  // For real player turns, use their own token
-  let accessToken: string;
-  let systemPrompt: string;
-
-  if (currentIsNPC) {
-    // NPC: use the other speaker's (real player's) token with NPC personality
-    const realUserId = isPlayerATurn ? conv.playerB.userId : conv.playerA.userId;
-    // Find the real user in the conversation (the non-NPC one)
-    const realPlayer = isNPC(conv.playerA.userId) ? conv.playerB.userId : conv.playerA.userId;
-    accessToken = await getValidAccessToken(realPlayer || realUserId);
-
-    const npcConfig = getNPCConfig(currentSpeaker.userId);
-    systemPrompt = npcConfig?.roleDescription || getSystemPrompt(conv.mode, otherSpeaker.name);
-  } else {
-    accessToken = await getValidAccessToken(currentSpeaker.userId);
-    systemPrompt = getSystemPrompt(conv.mode, otherSpeaker.name);
-  }
+  const accessToken = await getValidAccessToken(currentSpeaker.userId);
+  const systemPrompt = getSystemPrompt(conv.mode, otherSpeaker.name);
 
   let messageToSend: string;
 

@@ -68,7 +68,7 @@ export default function LocalPlayer({ color, name, onPositionChange }: LocalPlay
       setZone(zone?.id || 'none');
 
       const now = Date.now();
-      if (now - lastReportRef.current > 200) {
+      if (now - lastReportRef.current > 2000) {
         lastReportRef.current = now;
         onPositionChange(pos.x, pos.y, pos.z);
       }

@@ -51,7 +51,6 @@ export default function WorldPage() {
   const pollRef = useRef<NodeJS.Timeout>(undefined);
   const a2aPollRef = useRef<NodeJS.Timeout>(undefined);
   const isPollingA2A = useRef(false);
-  const npcTickRef = useRef<NodeJS.Timeout>(undefined);
 
   // Auth check
   useEffect(() => {
@@ -69,17 +68,10 @@ export default function WorldPage() {
       });
   }, [setUser]);
 
-  // Join world + trigger initial NPC tick
+  // Join world
   useEffect(() => {
     if (!user) return;
     fetch('/api/world/join', { method: 'POST' }).catch(() => {});
-    // Trigger initial NPC spawn
-    fetch('/api/world/npc-tick', { method: 'POST' }).catch(() => {});
-
-    // NPC tick every 10 seconds
-    npcTickRef.current = setInterval(() => {
-      fetch('/api/world/npc-tick', { method: 'POST' }).catch(() => {});
-    }, 10000);
 
     // Leave on unload
     const handleUnload = () => {
@@ -88,7 +80,6 @@ export default function WorldPage() {
     window.addEventListener('beforeunload', handleUnload);
     return () => {
       window.removeEventListener('beforeunload', handleUnload);
-      clearInterval(npcTickRef.current);
     };
   }, [user]);
 

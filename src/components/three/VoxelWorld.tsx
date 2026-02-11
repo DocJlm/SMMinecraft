@@ -43,7 +43,7 @@ export default function VoxelWorld({ playerColor, playerName, onPositionChange }
         shadow-camera-bottom={-60}
       />
       <hemisphereLight args={['#b3e5fc', '#4a7c3f', 0.3]} />
-      <fog attach="fog" args={['#b3e5fc', 80, 160]} />
+      <fog attach="fog" args={['#b3e5fc', 120, 250]} />
 
       <Suspense fallback={<LoadingFallback />}>
         <SkyBox />
